@@ -608,3 +608,85 @@ function renderPrediction(data) {
 
 function renderChart(data) {
   const W = 900, H = 320, padL = 46, padR = 20
+  , padT = 20, padB = 30;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+
+  const allPoints = [
+    ...data.history.map(p => ({ ...p, kind: 'history' })),
+    ...data.forecast.map(p => ({ ...p, kind: 'forecast' })),
+  ];
+
+  const allValues = allPoints.flatMap(p => [p.value, p.lower ?? p.value, p.upper ?? p.value]);
+  const maxV = Math.max(...allValues) * 1.12;
+  const minV = 0;
+
+  const n = allPoints.length;
+  const xFor = (i) => padL + (i / (n - 1)) * innerW;
+  const yFor = (v) => padT + innerH - ((v - minV) / (maxV - minV || 1)) * innerH;
+
+  const historyCount = data.history.length;
+
+  // Lines
+  const historyPath = data.history.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i)} ${yFor(p.value)}`).join(' ');
+
+  const forecastStartIdx = historyCount - 1;
+  const forecastPath = [
+    `M ${xFor(forecastStartIdx)} ${yFor(data.history[historyCount - 1].value)}`,
+    ...data.forecast.map((p, i) => `L ${xFor(forecastStartIdx + 1 + i)} ${yFor(p.value)}`)
+  ].join(' ');
+
+  const bandTop = [
+    `M ${xFor(forecastStartIdx)} ${yFor(data.history[historyCount - 1].value)}`,
+    ...data.forecast.map((p, i) => `L ${xFor(forecastStartIdx + 1 + i)} ${yFor(p.upper)}`)
+  ];
+  const bandBottom = data.forecast.map((p, i) => `L ${xFor(forecastStartIdx + 1 + data.forecast.length - 1 - i)} ${yFor(data.forecast[data.forecast.length - 1 - i].lower)}`);
+  const bandPath = [...bandTop, ...bandBottom, 'Z'].join(' ');
+
+  // Grid lines (4 horizontal)
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(t => {
+    const y = padT + innerH * t;
+    const val = Math.round(maxV * (1 - t));
+    return `<line class="grid-line" x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" />
+             <text class="axis-label" x="${padL - 8}" y="${y + 3}" text-anchor="end">${val}</text>`;
+  }).join('');
+
+  // X-axis labels (every ~4th point)
+  const step = Math.max(1, Math.floor(n / 8));
+  const xLabels = allPoints.map((p, i) => {
+    if (i % step !== 0 && i !== n - 1) return '';
+    const d = new Date(p.date);
+    const label = d.toLocaleDateString('nl-NL', { month: 'short', year: '2-digit' });
+    return `<text class="axis-label" x="${xFor(i)}" y="${H - 8}" text-anchor="middle">${label}</text>`;
+  }).join('');
+
+  const nowX = xFor(forecastStartIdx);
+
+  const historyDots = data.history.map((p, i) =>
+    `<circle class="dot-history" cx="${xFor(i)}" cy="${yFor(p.value)}" r="2.5" />`
+  ).join('');
+
+  const forecastDots = data.forecast.map((p, i) =>
+    `<circle class="dot-forecast" cx="${xFor(forecastStartIdx + 1 + i)}" cy="${yFor(p.value)}" r="3" />`
+  ).join('');
+
+  return `
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Grafiek van historische en voorspelde trend">
+      ${gridLines}
+      <path class="forecast-band" d="${bandPath}" />
+      <line class="now-marker" x1="${nowX}" y1="${padT}" x2="${nowX}" y2="${H - padB}" />
+      <text class="now-label" x="${nowX + 6}" y="${padT + 12}">NU</text>
+      <path class="history-line" d="${historyPath}" />
+      <path class="forecast-line" d="${forecastPath}" />
+      ${historyDots}
+      ${forecastDots}
+      ${xLabels}
+    </svg>
+  `;
+}
+
+// Start direct met de licentie-controle bij het openen van de pagina
+checkLicenseOnLoad();
+</script>
+</body>
+</html>
