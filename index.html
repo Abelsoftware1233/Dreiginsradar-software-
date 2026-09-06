@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signalis — Cybersecurity Trend Predictor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0A0E14;
+    --panel: #0F1621;
+    --panel-raised: #141D2B;
+    --line: #1E293B;
+    --text: #E4E9F2;
+    --muted: #8B95A7;
+    --dim: #566178;
+    --signal: #00D9A3;
+    --signal-dim: #00D9A322;
+    --risk: #FF5C5C;
+    --risk-dim: #FF5C5C22;
+    --cool: #5B7FFF;
+    --cool-dim: #5B7FFF22;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 15% 10%, #0F1B2A 0%, transparent 45%),
+      radial-gradient(circle at 85% 90%, #0D1A22 0%, transparent 40%);
+  }
+
+  ::selection { background: var(--signal-dim); color: var(--signal); }
+
+  .app-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    min-height: 100vh;
+  }
+  @media(max-width: 900px) {
+    .app-layout { grid-template-columns: 1fr; }
+  }
+
+  sidebar {
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-logo {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--signal-dim);
+    border: 1px solid var(--signal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--signal);
+    font-weight: 700;
+  }
+  .brand-title { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+  .brand-subtitle { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--dim);
+    margin-bottom: 10px;
+  }
+
+  .category-list { display: flex; flex-direction: column; gap: 6px; }
+  .cat-item {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+  }
+  .cat-item:hover { border-color: var(--dim); background: var(--panel-raised); }
+  .cat-item.active { border-color: var(--signal); background: var(--panel-raised); }
+  .cat-name { font-size: 13px; font-weight: 500; }
+  .cat-momentum {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .mom-stijgend { background: var(--risk-dim); color: var(--risk); }
+  .mom-stabiel { background: var(--signal-dim); color: var(--signal); }
+  .mom-dalend { background: var(--cool-dim); color: var(--cool); }
+
+  .main-content {
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    max-width: 1200px;
+  }
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+  }
+  .panel-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+  .panel-subtitle { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    padding: 6px 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+  }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--signal); }
+  .status-dot.live { background: var(--signal); box-shadow: 0 0 8px var(--signal); }
+  .status-dot.synthetic { background: var(--cool); }
+
+  .stat-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  @media(max-width: 768px) {
+    .stat-strip { grid-template-columns: 1fr; }
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 20px;
+    border-radius: 10px;
+  }
+  .stat-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .stat-value { font-size: 24px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  .stat-value.signal { color: var(--signal); }
+  .stat-value.risk { color: var(--risk); }
+  .stat-value.cool { color: var(--cool); }
+  .stat-sub { font-size: 12px; color: var(--dim); margin-top: 6px; }
+
+  .confidence-track {
+    width: 100%; height: 6px; background: var(--bg); border-radius: 3px; margin-top: 10px; overflow: hidden;
+  }
+  .confidence-fill { height: 100%; background: var(--signal); border-radius: 3px; }
+
+  .chart-panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .chart-legend {
+    display: flex;
+    gap: 20px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 12px; height: 3px; border-radius: 2px; }
+
+  svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .grid-line { stroke: var(--line); stroke-dasharray: 4 4; stroke-width: 1; }
+  .axis-label { fill: var(--dim); font-size: 10px; font-family: 'JetBrains Mono', monospace; }
+  .history-line { fill: none; stroke: var(--cool); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+  .forecast-line { fill: none; stroke: var(--signal); stroke-width: 2.5; stroke-dasharray: 5 5; stroke-linecap: round; stroke-linejoin: round; }
+  .forecast-band { fill: var(--signal); opacity: 0.12; }
+  .now-marker { stroke: var(--dim); stroke-width: 1; stroke-dasharray: 2 2; }
+  .now-label { fill: var(--dim); font-size: 9px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em; }
+  .dot-history { fill: var(--cool); }
+  .dot-forecast { fill: var(--signal); }
+
+  .method-note {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .method-note strong { color: var(--text); }
+
+  .loading {
+    display: flex; align-items: center; justify-content: center; height: 300px;
+    font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted); gap: 10px;
+  }
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--signal);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box {
+    background: var(--risk-dim); border: 1px solid var(--risk); padding: 20px; border-radius: 8px; color: var(--text); font-size: 13px; line-height: 1.6;
+  }
+  .error-box code { font-family: 'JetBrains Mono', monospace; background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div class="app-layout">
+  <sidebar>
+    <div class="brand">
+      <div class="brand-logo">S</div>
+      <div>
+        <div class="brand-title">Signalis</div>
+        <div class="brand-subtitle">Cyber Trend Predictor</div>
+      </div>
+    </div>
+    <div>
+      <div class="section-title">Domeinen / Categorieën</div>
+      <div class="category-list" id="category-list"></div>
+    </div>
+  </sidebar>
+
+  <main class="main-content">
+    <div class="top-bar">
+      <div>
+        <div class="panel-title" id="panel-title">Laden…</div>
+        <div class="panel-subtitle" id="panel-subtitle"></div>
+      </div>
+      <div class="status-badge">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Initialiseren</span>
+      </div>
+    </div>
+    <div id="content">
+      <div class="loading"><span class="spinner"></span> Systeem initialiseren…</div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API_BASE = window.SIGNALIS_API_BASE || '';
+
+const categories = [
+  { key: 'cloud_security', label: 'Cloud Security Posture Management' },
+  { key: 'ai_detection', label: 'AI-gedreven detectie & respons' },
+  { key: 'zero_trust', label: 'Zero-Trust Architectuur Tooling' },
+  { key: 'iam', label: 'Identity & Access Management' },
+  { key: 'supply_chain', label: 'Software Supply Chain Security' },
+  { key: 'iot_ot', label: 'IoT / OT Security' },
+  { key: 'ransomware', label: 'Ransomware-verdediging & Recovery' },
+  { key: 'post_quantum', label: 'Post-Quantum Cryptografie' }
+];
+
+let activeCategory = 'cloud_security';
+let horizon = 12;
+let currentSource = 'synthetic';
+
+const el = {
+  categoryList: document.getElementById('category-list'),
+  panelTitle: document.getElementById('panel-title'),
+  panelSubtitle: document.getElementById('panel-subtitle'),
+  statusDot: document.getElementById('status-dot'),
+  statusText: document.getElementById('status-text'),
+  content: document.getElementById('content')
+};
+
+function setStatus(type, label) {
+  el.statusDot.className = `status-dot ${type}`;
+  el.statusText.textContent = label;
+}
+
+async function init() {
+  renderCategoryList();
+  selectCategory(activeCategory);
+}
+
+async function fetchJSON(url) {
+  try {
+    const res = await fetch(API_BASE + url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    throw new Error(`Kan geen verbinding maken met de backend (${API_BASE}). Zorg dat de API actief is.`);
+  }
+}
+
+function renderCategoryList() {
+  el.categoryList.innerHTML = categories.map(c => `
+    <div class="cat-item" data-key="${c.key}" tabindex="0" role="button">
+      <span class="cat-name">${c.label}</span>
+      <span class="cat-momentum" data-momentum-for="${c.key}">···</span>
+    </div>
+  `).join('');
+
+  el.categoryList.querySelectorAll('.cat-item').forEach(item => {
+    item.addEventListener('click', () => selectCategory(item.dataset.key));
+    item.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') selectCategory(item.dataset.key);
+    });
+  });
+}
+
+function selectCategory(key) {
+  activeCategory = key;
+  el.categoryList.querySelectorAll('.cat-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.key === key);
+  });
+  loadPrediction(key);
+}
+
+async function loadPrediction(key) {
+  el.content.innerHTML = `<div class="loading"><span class="spinner"></span> voorspelling berekenen…</div>`;
+  try {
+    const data = await fetchJSON(`/api/predict/${key}?horizon=${horizon}`);
+    currentSource = data.source;
+    setStatus(
+      data.source === 'live-nvd' ? 'live' : 'synthetic',
+      data.source === 'live-nvd' ? 'live NVD-data' : 'synthetische data'
+    );
+    updateMomentumBadge(key, data.momentum);
+    renderPrediction(data);
+  } catch (err) {
+    el.content.innerHTML = `<div class="error-box"><strong>Voorspelling mislukt:</strong> ${err.message}</div>`;
+  }
+}
+
+function updateMomentumBadge(key, momentum) {
+  const badge = document.querySelector(`[data-momentum-for="${key}"]`);
+  if (!badge) return;
+  badge.textContent = momentum;
+  badge.className = `cat-momentum mom-${momentum}`;
+}
+
+function renderPrediction(data) {
+  const cat = categories.find(c => c.key === data.category);
+  el.panelTitle.textContent = cat ? cat.label : data.category;
+  el.panelSubtitle.textContent = `${data.history.length} maanden historie → ${data.forecast.length} maanden projectie`;
+
+  const lastHistory = data.history[data.history.length - 1].value;
+  const lastForecast = data.forecast[data.forecast.length - 1].value;
+  const pctChange = lastHistory > 0 ? (((lastForecast - lastHistory) / lastHistory) * 100).toFixed(0) : '—';
+  const trendClass = data.momentum === 'stijgend' ? 'signal' : (data.momentum === 'dalend' ? 'risk' : 'cool');
+
+  el.content.innerHTML = `
+    <div class="stat-strip">
+      <div class="stat">
+        <div class="stat-label">Momentum</div>
+        <div class="stat-value ${trendClass}">${data.momentum.toUpperCase()}</div>
+        <div class="stat-sub">${data.slope_per_month > 0 ? '+' : ''}${data.slope_per_month} punten / maand</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Geprojecteerde verandering</div>
+        <div class="stat-value ${trendClass}">${pctChange > 0 ? '+' : ''}${pctChange}%</div>
+        <div class="stat-sub">over ${data.forecast.length} maanden</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Modelvertrouwen</div>
+        <div class="stat-value">${Math.round(data.confidence * 100)}%</div>
+        <div class="confidence-track"><div class="confidence-fill" style="width:${data.confidence * 100}%"></div></div>
+      </div>
+    </div>
+
+    <div class="chart-panel">
+      <div class="chart-legend">
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--cool)"></span> Historisch gedrag</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--signal)"></span> Voorspelling</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--signal);opacity:.3"></span> Onzekerheidsband (~80%)</div>
+      </div>
+      ${renderChart(data)}
+    </div>
+
+    <div class="method-note">
+      <strong>Interpretatie:</strong> dit voorspelt geen individuele gebeurtenissen, maar extrapoleert
+      <strong>collectief, historisch stabiel gedrag</strong> — publicatieritme, seizoenspatronen en
+      adoptiesnelheid. Zulk aggregaatgedrag is aanzienlijk voorspelbaarder dan individuele beslissingen.
+      Bron: <strong>${currentSource === 'live-nvd' ? 'live NVD-kwetsbaarhedendata' : 'synthetisch gemodelleerd'}</strong>.
+      Behandel dit als scenarioverkenning, niet als garantie.
+    </div>
+  `;
+}
+
+function renderChart(data) {
+  const W = 900, H = 320, padL = 46, padR = 20, padT = 20, padB = 30;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+
+  const allPoints = [
+    ...data.history.map(p => ({ ...p, kind: 'history' })),
+    ...data.forecast.map(p => ({ ...p, kind: 'forecast' })),
+  ];
+
+  const allValues = allPoints.flatMap(p => [p.value, p.lower ?? p.value, p.upper ?? p.value]);
+  const maxV = Math.max(...allValues) * 1.12;
+  const minV = 0;
+
+  const n = allPoints.length;
+  const xFor = (i) => padL + (i / (n - 1)) * innerW;
+  const yFor = (v) => padT + innerH - ((v - minV) / (maxV - minV || 1)) * innerH;
+
+  const historyCount = data.history.length;
+  const historyPath = data.history.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i)} ${yFor(p.value)}`).join(' ');
+
+  const forecastStartIdx = historyCount - 1;
+  const forecastPath = [
+    `M ${xFor(forecastStartIdx)} ${yFor(data.history[historyCount - 1].value)}`,
+    ...data.forecast.map((p, i) => `L ${xFor(forecastStartIdx + 1 + i)} ${yFor(p.value)}`)
+  ].join(' ');
+
+  const bandTop = [
+    `M ${xFor(forecastStartIdx)} ${yFor(data.history[historyCount - 1].value)}`,
+    ...data.forecast.map((p, i) => `L ${xFor(forecastStartIdx + 1 + i)} ${yFor(p.upper)}`)
+  ];
+  const bandBottom = data.forecast.map((p, i) => `L ${xFor(forecastStartIdx + 1 + data.forecast.length - 1 - i)} ${yFor(data.forecast[data.forecast.length - 1 - i].lower)}`);
+  const bandPath = [...bandTop, ...bandBottom, 'Z'].join(' ');
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(t => {
+    const y = padT + innerH * t;
+    const val = Math.round(maxV * (1 - t));
+    return `<line class="grid-line" x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" />
+             <text class="axis-label" x="${padL - 8}" y="${y + 3}" text-anchor="end">${val}</text>`;
+  }).join('');
+
+  const step = Math.max(1, Math.floor(n / 8));
+  const xLabels = allPoints.map((p, i) => {
+    if (i % step !== 0 && i !== n - 1) return '';
+    const d = new Date(p.date);
+    const label = d.toLocaleDateString('nl-NL', { month: 'short', year: '2-digit' });
+    return `<text class="axis-label" x="${xFor(i)}" y="${H - 8}" text-anchor="middle">${label}</text>`;
+  }).join('');
+
+  const nowX = xFor(forecastStartIdx);
+  const historyDots = data.history.map((p, i) => `<circle class="dot-history" cx="${xFor(i)}" cy="${yFor(p.value)}" r="2.5" />`).join('');
+  const forecastDots = data.forecast.map((p, i) => `<circle class="dot-forecast" cx="${xFor(forecastStartIdx + 1 + i)}" cy="${yFor(p.value)}" r="3" />`).join('');
+
+  return `
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Trend grafiek">
+      ${gridLines}
+      <path class="forecast-band" d="${bandPath}" />
+      <line class="now-marker" x1="${nowX}" y1="${padT}" x2="${nowX}" y2="${H - padB}" />
+      <text class="now-label" x="${nowX + 6}" y="${padT + 12}">NU</text>
+      <path class="history-line" d="${historyPath}" />
+      <path class="forecast-line" d="${forecastPath}" />
+      ${historyDots}
+      ${forecastDots}
+      ${xLabels}
+    </svg>
+  `;
+}
+
+init();
+</script>
+</body>
+</html>
