@@ -37,6 +37,72 @@
 
   ::selection { background: var(--signal-dim); color: var(--signal); }
 
+  /* ---------- Licentie Overlay Scherm ---------- */
+  #license-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+  }
+  .license-box {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 30px;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  .license-box h2 {
+    font-size: 20px;
+    margin-bottom: 10px;
+  }
+  .license-box p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .license-box input {
+    width: 100%;
+    padding: 12px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 15px;
+  }
+  .license-box input:focus {
+    outline: 2px solid var(--signal);
+    border-color: transparent;
+  }
+  .license-box button {
+    width: 100%;
+    padding: 12px;
+    background: var(--signal);
+    color: var(--bg);
+    border: none;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 14px;
+    transition: opacity .2s;
+  }
+  .license-box button:hover { opacity: 0.9; }
+  .license-error {
+    color: var(--risk);
+    font-size: 12px;
+    margin-top: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
   /* ---------- Header ---------- */
   header{
     display: flex;
@@ -296,6 +362,17 @@
 </head>
 <body>
 
+<!-- Licentie Controle Overlay Scherm -->
+<div id="license-overlay" style="display: none;">
+  <div class="license-box">
+    <h2>Licentie Vereist</h2>
+    <p>Voer je maandelijkse licentiesleutel in (geldig voor 30 dagen).</p>
+    <input type="text" id="license-input" placeholder="bijv. 01-10-2026-10-01">
+    <button onclick="activateLicense()">Activeer Licentie</button>
+    <div id="license-error" class="license-error"></div>
+  </div>
+</div>
+
 <header>
   <div class="brand">
     <div class="brand-mark"></div>
@@ -336,6 +413,42 @@
 </div>
 
 <script>
+// --- LICENTIE CONFIGURATIE ---
+const GELDIGE_SLEUTEL = "01-10-2026-10-01";
+const DERTIJ_DAGEN_MS = 30 * 24 * 60 * 60 * 1000; // 30 dagen in milliseconden
+
+function checkLicenseOnLoad() {
+  const activatieTijd = localStorage.getItem('signalis_activatie_tijd');
+  const opgeslagenSleutel = localStorage.getItem('signalis_sleutel');
+  const huidigeTijd = new Date().getTime();
+
+  if (opgeslagenSleutel === GELDIGE_SLEUTEL && activatieTijd) {
+    const verstrekenTijd = huidigeTijd - parseInt(activatieTijd, 10);
+    if (verstrekenTijd < DERTIJ_DAGEN_MS) {
+      // Licentie is geldig, verberg scherm en start app
+      document.getElementById('license-overlay').style.display = 'none';
+      init();
+      return;
+    }
+  }
+  // Toon blokkering / invoerscherm
+  document.getElementById('license-overlay').style.display = 'flex';
+}
+
+function activateLicense() {
+  const ingevoerd = document.getElementById('license-input').value.trim();
+  const errorDiv = document.getElementById('license-error');
+
+  if (ingevoerd === GELDIGE_SLEUTEL) {
+    localStorage.setItem('signalis_sleutel', ingevoerd);
+    localStorage.setItem('signalis_activatie_tijd', new Date().getTime());
+    document.getElementById('license-overlay').style.display = 'none';
+    init();
+  } else {
+    errorDiv.textContent = "Ongeldige licentiesleutel. Probeer opnieuw.";
+  }
+}
+
 // Alles draait achter dezelfde poort (4444): frontend onder /app/, API onder
 // /api/*. Een leeg API_BASE ('') maakt fetch('/api/...') automatisch relatief
 // aan de huidige host — werkt dus lokaal én op elke server zonder aanpassing.
@@ -494,84 +607,4 @@ function renderPrediction(data) {
 }
 
 function renderChart(data) {
-  const W = 900, H = 320, padL = 46, padR = 20, padT = 20, padB = 30;
-  const innerW = W - padL - padR;
-  const innerH = H - padT - padB;
-
-  const allPoints = [
-    ...data.history.map(p => ({ ...p, kind: 'history' })),
-    ...data.forecast.map(p => ({ ...p, kind: 'forecast' })),
-  ];
-
-  const allValues = allPoints.flatMap(p => [p.value, p.lower ?? p.value, p.upper ?? p.value]);
-  const maxV = Math.max(...allValues) * 1.12;
-  const minV = 0;
-
-  const n = allPoints.length;
-  const xFor = (i) => padL + (i / (n - 1)) * innerW;
-  const yFor = (v) => padT + innerH - ((v - minV) / (maxV - minV || 1)) * innerH;
-
-  const historyCount = data.history.length;
-
-  // Lines
-  const historyPath = data.history.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i)} ${yFor(p.value)}`).join(' ');
-
-  const forecastStartIdx = historyCount - 1;
-  const forecastPath = [
-    `M ${xFor(forecastStartIdx)} ${yFor(data.history[historyCount - 1].value)}`,
-    ...data.forecast.map((p, i) => `L ${xFor(forecastStartIdx + 1 + i)} ${yFor(p.value)}`)
-  ].join(' ');
-
-  const bandTop = [
-    `M ${xFor(forecastStartIdx)} ${yFor(data.history[historyCount - 1].value)}`,
-    ...data.forecast.map((p, i) => `L ${xFor(forecastStartIdx + 1 + i)} ${yFor(p.upper)}`)
-  ];
-  const bandBottom = data.forecast.map((p, i) => `L ${xFor(forecastStartIdx + 1 + data.forecast.length - 1 - i)} ${yFor(data.forecast[data.forecast.length - 1 - i].lower)}`);
-  const bandPath = [...bandTop, ...bandBottom, 'Z'].join(' ');
-
-  // Grid lines (4 horizontal)
-  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(t => {
-    const y = padT + innerH * t;
-    const val = Math.round(maxV * (1 - t));
-    return `<line class="grid-line" x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" />
-             <text class="axis-label" x="${padL - 8}" y="${y + 3}" text-anchor="end">${val}</text>`;
-  }).join('');
-
-  // X-axis labels (every ~4th point)
-  const step = Math.max(1, Math.floor(n / 8));
-  const xLabels = allPoints.map((p, i) => {
-    if (i % step !== 0 && i !== n - 1) return '';
-    const d = new Date(p.date);
-    const label = d.toLocaleDateString('nl-NL', { month: 'short', year: '2-digit' });
-    return `<text class="axis-label" x="${xFor(i)}" y="${H - 8}" text-anchor="middle">${label}</text>`;
-  }).join('');
-
-  const nowX = xFor(forecastStartIdx);
-
-  const historyDots = data.history.map((p, i) =>
-    `<circle class="dot-history" cx="${xFor(i)}" cy="${yFor(p.value)}" r="2.5" />`
-  ).join('');
-
-  const forecastDots = data.forecast.map((p, i) =>
-    `<circle class="dot-forecast" cx="${xFor(forecastStartIdx + 1 + i)}" cy="${yFor(p.value)}" r="3" />`
-  ).join('');
-
-  return `
-    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Grafiek van historische en voorspelde trend">
-      ${gridLines}
-      <path class="forecast-band" d="${bandPath}" />
-      <line class="now-marker" x1="${nowX}" y1="${padT}" x2="${nowX}" y2="${H - padB}" />
-      <text class="now-label" x="${nowX + 6}" y="${padT + 12}">NU</text>
-      <path class="history-line" d="${historyPath}" />
-      <path class="forecast-line" d="${forecastPath}" />
-      ${historyDots}
-      ${forecastDots}
-      ${xLabels}
-    </svg>
-  `;
-}
-
-init();
-</script>
-</body>
-</html>
+  const W = 900, H = 320, padL = 46, padR = 20
